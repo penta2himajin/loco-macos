@@ -9,7 +9,6 @@ final class OverlayViewModel {
     var reply: String = ""
     var status: String = "Ready"
     var isBusy: Bool = false
-    var isPinned: Bool = false
     var clarifyChoices: [ClarifyChoice] = []
 
     private let client: LocoServeClient
