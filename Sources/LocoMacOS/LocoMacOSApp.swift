@@ -52,21 +52,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // Variable length so icon + short label both fit in the menu bar.
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
-            let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
             if let image = NSImage(
                 systemSymbolName: "sparkle.magnifyingglass",
                 accessibilityDescription: "loco"
             ) {
                 image.isTemplate = true
                 button.image = image.withSymbolConfiguration(config)
-                button.imagePosition = .imageOnly
-            } else {
-                // Fallback if SF Symbols unavailable.
-                button.title = "loco"
+                button.imagePosition = .imageLeading
             }
+            button.title = "loco"
             button.toolTip = "loco — ⌃⌘Space"
+            button.appearsDisabled = false
         }
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Show Overlay", action: #selector(toggleOverlay), keyEquivalent: ""))
@@ -80,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit loco", action: #selector(quit), keyEquivalent: "q"))
         item.menu = menu
+        // Keep a strong reference; losing this removes the menu-bar item.
         statusItem = item
     }
 

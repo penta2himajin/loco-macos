@@ -21,9 +21,11 @@ cd ../loco-bot && cargo build -p loco-cli
 
 ```bash
 swift test          # core JSON / config tests (no GPU)
-swift build         # build overlay app
-swift run LocoMacOS # menu-bar helper + overlay
+./scripts/run-overlay.sh   # build .app and open (menu bar attaches correctly)
 ```
+
+Prefer `./scripts/run-overlay.sh` over raw `swift run` — launching from an IDE/agent
+shell often fails to show the `NSStatusItem` on the interactive menu bar.
 
 Default runtime backend is **cpu** so this overlay does not fight other GPU jobs.
 Switch to gpu in Settings later (see SoT) when the machine is free.
