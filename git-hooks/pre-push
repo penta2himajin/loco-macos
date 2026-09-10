@@ -32,6 +32,12 @@ run() {
     fi
 }
 
+# --- Swift (SwiftPM) -------------------------------------------------------
+if [[ -f Package.swift ]]; then
+    run "swift build"                swift build
+    # run "swift test"               swift test
+fi
+
 # --- Rust (Cargo) ----------------------------------------------------------
 if [[ -f Cargo.toml ]]; then
     run "cargo fmt --check"      cargo fmt --all -- --check

@@ -1,79 +1,69 @@
-# <Project Name>
+# loco-macos
 
 ## Overview
 
-<!-- One to three paragraphs describing the project's purpose, target domain, and distinguishing characteristics. If detailed specs live under docs/, reference them with @docs/<file>.md. -->
+Thin macOS surface for loco-bot: Spotlight-like overlay (⌃⌘Space), menu-bar helper,
+and a warm `loco serve` child process. Inference, memory, S1, and tools stay in
+**loco-bot**; this repo is UI + IPC only.
+
+Behaviour contract: [loco-bot `docs/macos-overlay.md`](https://github.com/penta2himajin/loco-bot/blob/main/docs/macos-overlay.md).
 
 ## Project Structure
 
-<!-- Directory layout with the role of each. Make explicit the boundary between source code, documentation, and generated artifacts. -->
-
 ```
-src/         # ...
-docs/        # ...
-tests/       # ...
+Sources/LocoMacOSCore/   # Agent JSON types + LocoServeClient
+Sources/LocoMacOS/       # AppKit/SwiftUI overlay + hotkey
+Tests/LocoMacOSCoreTests/
+docs/                    # handoff, i18n, local notes
+git-hooks/               # pre-push (swift build)
 ```
 
 ## Development Setup
 
-<!-- Required toolchain pins, bootstrap commands, external dependencies (DB, MCP servers). -->
-
 ```bash
-# example
-cargo install ...
-
-# Pre-push hook (format / lint / clippy).
-cp git-hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+git config core.hooksPath git-hooks
+# Requires a built `loco` from loco-bot on PATH (or default debug path).
 ```
 
 ## Build & Test
 
-<!-- Canonical verification commands. Must be runnable without prior setup so agents can self-verify. -->
-
 ```bash
-cargo build --workspace
-cargo test  --workspace
+swift test
+swift build
 ```
+
+Do **not** run GPU-backed `loco serve` smoke tests while other Metal/MLX jobs
+are active on the machine; default config uses `--backend cpu`.
 
 ## Development Principles
 
-<!-- Project-specific additions only. Do not restate the common rules below. Examples:
-- "All features touching target-adjacent columns must be registered in LEAK_FEATURES."
-- "Public API changes require an ADR in docs/decisions/." -->
+- TDD for Core (JSON / config / client seams).
+- Overlay stays a thin client of `TurnOutcome` / `AgentEvent`.
 
 ## Architectural Boundaries
 
-<!-- Structural invariants that, if violated, break the design. Examples:
-- "core crate stays domain-agnostic."
-- "Generated code under gen/ is never hand-edited."
-- "Layer X must not depend on layer Y." -->
+- No LiteRT-LM / model weights in this repo.
+- No Android/glasses code here.
+- Core target must stay SwiftUI-free.
 
 ## Prohibitions
 
-<!-- Numbered list of "do not" rules, written so each is verifiable. Do not duplicate the common prohibitions below. -->
-
-1. ...
-2. ...
+1. Do not spawn `loco serve --backend gpu` in CI or default tests.
+2. Do not steal Spotlight’s `⌘Space` as the default hotkey.
+3. Do not vendor loco-bot sources; depend on the `loco` binary / future IPC.
 
 ## Git Conventions
 
-<!-- Differences from the common rules below. Examples: scoped Conventional Commits like `feat(phase1d):`, mandatory issue links in PR bodies. -->
+- Conventional Commits; agent trailer when an AI authors the commit.
+- Branch prefix: `claude/<topic>`, `codex/<topic>`, or `human/<topic>`.
 
 ## Session Handoff
 
-Long-running workstreams use GitHub issues for cross-session continuity. See `docs/handoff-protocol.md` for the full protocol.
-
-- Label: `session-handoff`
-- One issue per workstream (not per session)
-- On session start, read the relevant handoff issue and confirm the **Next action** with the user before executing.
+See `docs/handoff-protocol.md`. Label: `session-handoff`.
 
 ## Internationalisation
 
-If this project ships a Japanese-facing entry point, follow `docs/i18n-policy.md`:
-
-- Translations are suffix files (`README.ja.md` next to `README.md`); no language directories.
-- Only `README.md` and the user-facing introduction tier of `docs/` are in scope. Engineering docs and ADRs stay English-only.
-- Each translated file carries a `> Source: <name>.md @ <sha>` header. PRs are never blocked on translation parity.
+See `docs/i18n-policy.md` if a Japanese README is added.
 
 ---
 
@@ -97,24 +87,16 @@ Base decisions on observed data, not assumptions. Before optimising, claiming a 
 
 ### Git Conventions
 
-- **Conventional Commits**: `feat:` `fix:` `docs:` `refactor:` `test:` `ci:` `chore:`. Project-specific prefixes (e.g. `data:`, `experiments:`) live in the project's `AGENTS.md`.
-- **Branch naming**: use a short prefix for the agent or author followed by a topic, e.g. `claude/<topic>`, `codex/<topic>`, or `human/<topic>`.
-- **Trailer**: when an AI agent authors the commit, append a trailer crediting the agent. Do not embed model name or session info in the trailer; put those in the commit body if needed.
-- **Pre-push hook**: install via `cp git-hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push` (or `git config core.hooksPath git-hooks`). The hook runs format / lint / clippy before every push. Tests are intentionally omitted — TDD keeps them green at commit time.
+- **Conventional Commits**: `feat:` `fix:` `docs:` `refactor:` `test:` `ci:` `chore:`.
+- **Branch naming**: `claude/<topic>`, `codex/<topic>`, or `human/<topic>`.
+- **Trailer**: when an AI agent authors the commit, append a trailer crediting the agent.
+- **Pre-push hook**: `git config core.hooksPath git-hooks`.
 
 ### Pull Requests
 
-- **Always ready for review.** Open PRs in the "ready" state, never as drafts. Draft PRs do not fire review-requested events and slow the loop.
-- **Auto-subscribe after creating a PR.** Immediately after the PR is created, subscribe to its activity without asking the user. Rationale: the user explicitly opted into the "agent opens and watches its own PRs" workflow at the template level, so the per-PR confirmation is noise. Unsubscribe only when the user says to stop, when the PR merges, or when it is closed unmerged.
-- **One PR per workstream**, matching the handoff issue. Reference the issue with `Closes #N` per `.github/PULL_REQUEST_TEMPLATE.md`.
-
-### Stream Idle Timeout Mitigation
-
-Cloud agent sessions occasionally fail with `Stream idle timeout - partial response received` on long output. To reduce risk:
-
-1. **Stage long writes.** For long documents or source files, write the skeleton (headings, function signatures, trait stubs) first, then fill each section in follow-up edits. Avoid single blocks larger than ~200 lines.
-2. **Watch out after large reads.** Reading a big file (e.g. `Cargo.lock`, large generated modules) and then immediately producing long output is a common trigger. Split into separate turns or excerpt only the relevant portion.
-3. **Recover carefully.** A timeout can still leave the file write completed. Run `git status` before retrying so the same content is not written twice.
+- **Always ready for review.** Open PRs in the "ready" state, never as drafts.
+- **Auto-subscribe after creating a PR.** Immediately after the PR is created, subscribe to its activity without asking the user.
+- **One PR per workstream**, matching the handoff issue.
 
 ### Common Prohibitions
 
