@@ -30,9 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installEscapeMonitor()
         do {
             try hotkey.register { [weak self] in
-                Task { @MainActor in
-                    self?.toggleOverlay()
-                }
+                self?.toggleOverlay()
+            }
+            if !hotkey.isOverridingSystemShortcut {
+                overlayVM.status =
+                    "⌃⌘Space needs Accessibility to override emoji picker — open Privacy settings from the menu."
             }
         } catch {
             overlayVM.status = "Hotkey failed (\(error)). Use menu bar."
@@ -56,6 +58,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Show Overlay", action: #selector(toggleOverlay), keyEquivalent: ""))
+        menu.addItem(
+            NSMenuItem(
+                title: "Enable Accessibility for ⌃⌘Space…",
+                action: #selector(openAccessibility),
+                keyEquivalent: ""
+            )
+        )
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit loco", action: #selector(quit), keyEquivalent: "q"))
         item.menu = menu
@@ -173,6 +182,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Upper third, Spotlight-like.
         let y = frame.minY + frame.height * 0.62 - panelSize.height / 2
         panel.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    @objc private func openAccessibility() {
+        HotkeyRegistrar.openAccessibilitySettings()
     }
 
     @objc private func quit() {

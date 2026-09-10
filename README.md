@@ -1,7 +1,9 @@
 # loco-macos
 
 macOS companion overlay for [loco-bot](https://github.com/penta2himajin/loco-bot): global hotkey
-(**⌃⌥Space**) → floating panel → `loco serve` JSONL → reply.
+(**⌃⌘Space**) → floating panel → `loco serve` JSONL → reply.
+
+To **override** the system emoji / Character Viewer on the same chord, grant **Accessibility** to `LocoMacOS` (menu bar → *Enable Accessibility for ⌃⌘Space…*).
 
 Behaviour SoT (lives in loco-bot):  
 https://github.com/penta2himajin/loco-bot/blob/main/docs/macos-overlay.md
