@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observePresentationChanges()
         do {
             try hotkey.register { [weak self] in
-                self?.toggleOverlay()
+                self?.presentOverlayInitial()
             }
             if !hotkey.isOverridingSystemShortcut {
                 overlayVM.status =
@@ -43,6 +43,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             overlayVM.status = "Hotkey failed (\(error)). Use menu bar."
         }
         overlayVM.ensureRuntime()
+        // First launch: empty composer (history still empty).
+        overlayVM.resetToInitial()
         showOverlay()
     }
 
@@ -72,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.appearsDisabled = false
         }
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Show Overlay", action: #selector(toggleOverlay), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Show Overlay", action: #selector(presentOverlayInitial), keyEquivalent: ""))
         menu.addItem(
             NSMenuItem(
                 title: "Enable Accessibility for ⌃⌘Space…",
@@ -160,13 +162,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hideOverlay()
     }
 
-    @objc private func toggleOverlay() {
-        guard let panel else { return }
-        if panel.isVisible {
-            hideOverlay()
-        } else {
-            showOverlay()
-        }
+    @objc private func presentOverlayInitial() {
+        overlayVM.resetToInitial()
+        showOverlay()
     }
 
     private func showOverlay() {

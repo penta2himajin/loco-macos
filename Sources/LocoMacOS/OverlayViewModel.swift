@@ -13,6 +13,8 @@ final class OverlayViewModel {
     var isBusy: Bool = false
     var clarifyChoices: [ClarifyChoice] = []
 
+    private(set) var history = OverlayHistoryNavigator()
+
     var composerPlaceholder: String {
         ComposerPlaceholder.text(draft: draft, lastSubmitted: lastSubmittedPrompt)
     }
@@ -40,12 +42,32 @@ final class OverlayViewModel {
         status = "Runtime stopped"
     }
 
+    /// ⌃⌘Space: empty composer, not browsing (history entries kept).
+    func resetToInitial() {
+        history.resetToInitial()
+        applyHistoryCursor()
+        status = client.isRunning ? "Runtime warm (\(config.backend.rawValue))" : "Ready"
+        clarifyChoices = []
+        isBusy = false
+    }
+
+    func historyUp() {
+        guard !isBusy, history.moveUp() else { return }
+        applyHistoryCursor()
+    }
+
+    func historyDown() {
+        guard !isBusy, history.moveDown() else { return }
+        applyHistoryCursor()
+    }
+
     func submit() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isBusy else { return }
         ensureRuntime()
         lastSubmittedPrompt = text
         draft = ""
+        reply = ""
         isBusy = true
         status = "Thinking…"
         clarifyChoices = []
@@ -54,7 +76,7 @@ final class OverlayViewModel {
             do {
                 let outcome = try client.turn(user: text)
                 await MainActor.run {
-                    self.apply(outcome)
+                    self.apply(outcome, prompt: text)
                     self.isBusy = false
                 }
             } catch {
@@ -67,9 +89,10 @@ final class OverlayViewModel {
         }
     }
 
-    private func apply(_ outcome: TurnOutcome) {
+    private func apply(_ outcome: TurnOutcome, prompt: String) {
         reply = outcome.replyText
         status = "Done"
+        clarifyChoices = []
         for event in outcome.events {
             if case let .clarify(_, choices) = event {
                 clarifyChoices = choices
@@ -77,5 +100,25 @@ final class OverlayViewModel {
             }
         }
         draft = ""
+        lastSubmittedPrompt = prompt
+        // Record text replies into history; clarify-only still records prompt + reply text.
+        history.record(OverlayTurn(prompt: prompt, reply: outcome.replyText))
+        applyHistoryCursor()
+    }
+
+    private func applyHistoryCursor() {
+        if let turn = history.current {
+            // History prompt is real editable draft text, not a faint placeholder.
+            draft = turn.prompt
+            lastSubmittedPrompt = ""
+            reply = turn.reply
+            status = "Done"
+            clarifyChoices = []
+        } else {
+            lastSubmittedPrompt = ""
+            reply = ""
+            draft = ""
+            clarifyChoices = []
+        }
     }
 }

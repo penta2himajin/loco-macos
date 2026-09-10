@@ -71,12 +71,34 @@ struct OverlayPanelView: View {
                 .focused($inputFocused)
                 .disabled(vm.isBusy)
                 .onKeyPress(phases: .down) { press in
-                    guard press.key == .return else { return .ignored }
-                    switch ComposerKeyChord.action(returnWithShift: press.modifiers.contains(.shift)) {
-                    case .submit:
-                        vm.submit()
+                    if press.key == .return {
+                        switch ComposerKeyChord.action(
+                            returnWithCommand: press.modifiers.contains(.command)
+                        ) {
+                        case .submit:
+                            vm.submit()
+                            return .handled
+                        case .insertNewline:
+                            return .ignored
+                        default:
+                            return .ignored
+                        }
+                    }
+                    let up = press.key == .upArrow
+                    let down = press.key == .downArrow
+                    switch ComposerKeyChord.action(
+                        arrowUp: up,
+                        arrowDown: down,
+                        draftIsEmpty: vm.draft.isEmpty,
+                        browsingHistory: !vm.history.isLive
+                    ) {
+                    case .historyUp:
+                        vm.historyUp()
                         return .handled
-                    case .insertNewline:
+                    case .historyDown:
+                        vm.historyDown()
+                        return .handled
+                    default:
                         return .ignored
                     }
                 }

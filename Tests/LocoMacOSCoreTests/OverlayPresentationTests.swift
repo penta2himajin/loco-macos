@@ -53,9 +53,29 @@ struct OverlayPresentationTests {
 
 @Suite("Composer key chord")
 struct ComposerKeyChordTests {
-    @Test func shiftReturnInsertsNewlineInsteadOfSubmit() {
-        #expect(ComposerKeyChord.action(returnWithShift: true) == .insertNewline)
-        #expect(ComposerKeyChord.action(returnWithShift: false) == .submit)
+    @Test func commandReturnSubmitsPlainReturnInsertsNewline() {
+        #expect(ComposerKeyChord.action(returnWithCommand: true) == .submit)
+        #expect(ComposerKeyChord.action(returnWithCommand: false) == .insertNewline)
+    }
+
+    @Test func arrowsBrowseHistoryWhenDraftEmptyOrAlreadyBrowsing() {
+        #expect(
+            ComposerKeyChord.action(arrowUp: true, arrowDown: false, draftIsEmpty: true, browsingHistory: false)
+                == .historyUp
+        )
+        #expect(
+            ComposerKeyChord.action(arrowUp: false, arrowDown: true, draftIsEmpty: true, browsingHistory: false)
+                == .historyDown
+        )
+        // While browsing, draft holds the prompt — arrows must still navigate.
+        #expect(
+            ComposerKeyChord.action(arrowUp: true, arrowDown: false, draftIsEmpty: false, browsingHistory: true)
+                == .historyUp
+        )
+        #expect(
+            ComposerKeyChord.action(arrowUp: true, arrowDown: false, draftIsEmpty: false, browsingHistory: false)
+                == .ignored
+        )
     }
 }
 
