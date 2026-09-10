@@ -51,9 +51,8 @@ public final class HotkeyRegistrar: @unchecked Sendable {
         lock.unlock()
 
         // Prompt once if needed so the tap can install.
-        // CFString bridging of this global is not concurrency-safe under Swift 6.
-        nonisolated(unsafe) let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        let prompt = [promptKey: true] as CFDictionary
+        // Avoid importing kAXTrustedCheckOptionPrompt (not Sendable under Swift 6).
+        let prompt = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(prompt)
 
         if tryInstallEventTap() {
