@@ -52,9 +52,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
-            button.title = "loco"
+            let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+            if let image = NSImage(
+                systemSymbolName: "sparkle.magnifyingglass",
+                accessibilityDescription: "loco"
+            ) {
+                image.isTemplate = true
+                button.image = image.withSymbolConfiguration(config)
+                button.imagePosition = .imageOnly
+            } else {
+                // Fallback if SF Symbols unavailable.
+                button.title = "loco"
+            }
+            button.toolTip = "loco — ⌃⌘Space"
         }
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Show Overlay", action: #selector(toggleOverlay), keyEquivalent: ""))
