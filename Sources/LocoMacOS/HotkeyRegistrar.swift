@@ -50,10 +50,13 @@ public final class HotkeyRegistrar: @unchecked Sendable {
         self.handler = handler
         lock.unlock()
 
-        // Prompt once if needed so the tap can install.
-        // Avoid importing kAXTrustedCheckOptionPrompt (not Sendable under Swift 6).
-        let prompt = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(prompt)
+        // Prompt only when Accessibility is not yet granted. Passing
+        // AXTrustedCheckOptionPrompt=true while already trusted can still
+        // resurface the system dialog on some macOS builds.
+        if !AXIsProcessTrusted() {
+            let prompt = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+            _ = AXIsProcessTrustedWithOptions(prompt)
+        }
 
         if tryInstallEventTap() {
             isOverridingSystemShortcut = true

@@ -22,8 +22,13 @@ struct OverlayPanelView: View {
             }
         }
         .frame(width: panelWidth)
-        .glassEffect(.regular.interactive(), in: shape)
-        .shadow(color: .black.opacity(0.28), radius: 28, y: 12)
+        // Standard Liquid Glass (`.regular`). Avoid `.clear` / heavy interactivity —
+        // those read too translucent for a text launcher. Soft window tint for legibility.
+        .background {
+            shape.fill(Color(nsColor: .windowBackgroundColor).opacity(0.42))
+        }
+        .glassEffect(.regular.tint(Color(nsColor: .windowBackgroundColor).opacity(0.25)), in: shape)
+        .shadow(color: .black.opacity(0.22), radius: 24, y: 10)
         .onAppear {
             inputFocused = true
         }
