@@ -5,18 +5,28 @@ import LocoMacOSCore
 struct OverlayPanelView: View {
     @Bindable var vm: OverlayViewModel
     var onDismiss: () -> Void
+    /// Called when SwiftUI layout size changes so the NSPanel can resize.
+    var onMeasuredSize: ((CGSize) -> Void)? = nil
 
     @FocusState private var inputFocused: Bool
 
-    private let panelWidth: CGFloat = 640
+    private let panelWidth: CGFloat = OverlayPresentation.panelWidth
     private let cornerRadius: CGFloat = 20
+
+    private var presentation: OverlayPresentation {
+        OverlayPresentation(
+            reply: vm.reply,
+            clarifyCount: vm.clarifyChoices.count,
+            status: vm.status
+        )
+    }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         VStack(spacing: 0) {
             searchRow
-            if showsBody {
+            if presentation.showsBody {
                 Divider().opacity(0.22)
                 bodySection
             }
@@ -29,20 +39,22 @@ struct OverlayPanelView: View {
         }
         .glassEffect(.regular.tint(Color(nsColor: .windowBackgroundColor).opacity(0.25)), in: shape)
         .shadow(color: .black.opacity(0.22), radius: 24, y: 10)
+        .background {
+            GeometryReader { geo in
+                Color.clear
+                    .preference(key: OverlayContentSizeKey.self, value: geo.size)
+            }
+        }
+        .onPreferenceChange(OverlayContentSizeKey.self) { size in
+            guard size.width > 0, size.height > 0 else { return }
+            onMeasuredSize?(size)
+        }
         .onAppear {
             inputFocused = true
         }
         .onChange(of: vm.isBusy) { _, busy in
             if !busy { inputFocused = true }
         }
-    }
-
-    /// Body opens for replies / clarify / errors — not for busy-only “Thinking…”.
-    private var showsBody: Bool {
-        !vm.reply.isEmpty
-            || !vm.clarifyChoices.isEmpty
-            || vm.status.hasPrefix("Error")
-            || vm.status.hasPrefix("Runtime failed")
     }
 
     private var searchRow: some View {
@@ -52,12 +64,22 @@ struct OverlayPanelView: View {
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
 
-            TextField("Ask loco…", text: $vm.draft)
+            TextField(vm.composerPlaceholder, text: $vm.draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 22, weight: .regular))
+                .lineLimit(1...8)
                 .focused($inputFocused)
                 .disabled(vm.isBusy)
-                .onSubmit { vm.submit() }
+                .onKeyPress(phases: .down) { press in
+                    guard press.key == .return else { return .ignored }
+                    switch ComposerKeyChord.action(returnWithShift: press.modifiers.contains(.shift)) {
+                    case .submit:
+                        vm.submit()
+                        return .handled
+                    case .insertNewline:
+                        return .ignored
+                    }
+                }
 
             if vm.isBusy {
                 ProgressView()
@@ -112,8 +134,9 @@ struct OverlayPanelView: View {
                         .textSelection(.enabled)
                         .padding(.trailing, 4)
                 }
-                .frame(maxHeight: 280)
-            } else if vm.status.hasPrefix("Error") || vm.status.hasPrefix("Runtime failed") {
+                // Grow with content up to 15 lines; only then scroll — same on first paint and reopen.
+                .frame(height: ReplyLayout.viewportHeight(for: vm.reply))
+            } else if presentation.hasError {
                 Text(vm.status)
                     .font(.system(size: 13))
                     .foregroundStyle(.red.opacity(0.9))
@@ -122,5 +145,12 @@ struct OverlayPanelView: View {
         .padding(.horizontal, 14)
         .padding(.top, 8)
         .padding(.bottom, 14)
+    }
+}
+
+private struct OverlayContentSizeKey: PreferenceKey {
+    static let defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
     }
 }

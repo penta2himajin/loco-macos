@@ -21,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var overlayVM = OverlayViewModel()
     private let hotkey = HotkeyRegistrar()
     private var escapeMonitor: Any?
+    /// Keeps NSPanel content size in sync when reply/clarify expands the SwiftUI body.
+    private var frameController = PanelFrameController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -28,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupBackdrop()
         setupPanel()
         installEscapeMonitor()
+        observePresentationChanges()
         do {
             try hotkey.register { [weak self] in
                 self?.toggleOverlay()
@@ -106,14 +109,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupPanel() {
-        let hosting = NSHostingView(rootView: OverlayPanelView(vm: overlayVM) { [weak self] in
-            self?.hideOverlay()
-        })
+        let hosting = NSHostingView(
+            rootView: OverlayPanelView(
+                vm: overlayVM,
+                onDismiss: { [weak self] in
+                    self?.hideOverlay()
+                },
+                onMeasuredSize: { [weak self] size in
+                    self?.applyMeasuredContentSize(size)
+                }
+            )
+        )
         hosting.sizingOptions = [.intrinsicContentSize]
-        hosting.frame = NSRect(x: 0, y: 0, width: 640, height: 72)
+        let initial = frameController.contentSize
+        hosting.frame = NSRect(origin: .zero, size: initial)
 
         let panel = KeyablePanel(
-            contentRect: NSRect(x: 0, y: 0, width: 640, height: 72),
+            contentRect: NSRect(origin: .zero, size: initial),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -163,6 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             backdrop.setFrame(screen.frame, display: true)
         }
         backdrop.orderFront(nil)
+        syncPanelFrameFromPresentation(force: true)
         positionPanel(panel)
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -176,19 +189,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel?.orderOut(nil)
     }
 
+    /// Re-arms Observation tracking so reply/status growth resizes the panel without reopen.
+    private func observePresentationChanges() {
+        withObservationTracking {
+            _ = overlayVM.reply
+            _ = overlayVM.clarifyChoices.count
+            _ = overlayVM.status
+            _ = overlayVM.isBusy
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.syncPanelFrameFromPresentation(force: false)
+                self?.observePresentationChanges()
+            }
+        }
+    }
+
+    private func currentPresentation() -> OverlayPresentation {
+        OverlayPresentation(
+            reply: overlayVM.reply,
+            clarifyCount: overlayVM.clarifyChoices.count,
+            status: overlayVM.status
+        )
+    }
+
+    private func syncPanelFrameFromPresentation(force: Bool) {
+        let changed = frameController.apply(currentPresentation())
+        guard force || changed else { return }
+        applyPanelContentSize(frameController.contentSize)
+    }
+
+    private func applyMeasuredContentSize(_ size: CGSize) {
+        // Prefer the larger of preferred math vs measured SwiftUI size so short
+        // fittingSize after a reply cannot shrink the panel again.
+        let preferred = currentPresentation().preferredPanelSize
+        let merged = CGSize(
+            width: max(size.width, preferred.width),
+            height: max(size.height, preferred.height)
+        )
+        guard frameController.applyMeasured(merged) else { return }
+        applyPanelContentSize(frameController.contentSize)
+    }
+
+    private func applyPanelContentSize(_ size: CGSize) {
+        guard let panel else { return }
+        panel.setContentSize(size)
+        if panel.isVisible {
+            positionPanel(panel)
+        }
+    }
+
     private func positionPanel(_ panel: KeyablePanel) {
         guard let screen = NSScreen.main else {
             panel.center()
             return
         }
         panel.layoutIfNeeded()
-        // Fit content; hosting view may grow after SwiftUI layout.
+        // Prefer frameController size. fittingSize alone often stays at the
+        // search-only height until the panel is reopened — the user-visible bug.
+        var size = frameController.contentSize
         if let hosting = panel.contentView {
             let fitting = hosting.fittingSize
-            if fitting.width > 0, fitting.height > 0 {
-                panel.setContentSize(NSSize(width: max(fitting.width, 640), height: fitting.height))
+            if fitting.width > 0, fitting.height > size.height {
+                size = CGSize(width: max(fitting.width, OverlayPresentation.panelWidth), height: fitting.height)
+                _ = frameController.applyMeasured(size)
             }
         }
+        panel.setContentSize(size)
         let frame = screen.visibleFrame
         let panelSize = panel.frame.size
         let x = frame.midX - panelSize.width / 2

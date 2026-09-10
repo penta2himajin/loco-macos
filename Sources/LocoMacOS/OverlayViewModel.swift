@@ -6,10 +6,16 @@ import LocoMacOSCore
 @Observable
 final class OverlayViewModel {
     var draft: String = ""
+    /// Last prompt sent; shown as faint TextField placeholder after the draft is cleared.
+    var lastSubmittedPrompt: String = ""
     var reply: String = ""
     var status: String = "Ready"
     var isBusy: Bool = false
     var clarifyChoices: [ClarifyChoice] = []
+
+    var composerPlaceholder: String {
+        ComposerPlaceholder.text(draft: draft, lastSubmitted: lastSubmittedPrompt)
+    }
 
     private let client: LocoServeClient
     private let config: RuntimeConfig
@@ -38,6 +44,8 @@ final class OverlayViewModel {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isBusy else { return }
         ensureRuntime()
+        lastSubmittedPrompt = text
+        draft = ""
         isBusy = true
         status = "Thinking…"
         clarifyChoices = []
