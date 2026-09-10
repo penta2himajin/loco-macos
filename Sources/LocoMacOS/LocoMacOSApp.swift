@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         win.isOpaque = false
-        win.backgroundColor = NSColor.black.withAlphaComponent(0.28)
+        win.backgroundColor = NSColor.black.withAlphaComponent(0.14)
         win.level = .floating
         win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         win.ignoresMouseEvents = false

@@ -9,26 +9,21 @@ struct OverlayPanelView: View {
     @FocusState private var inputFocused: Bool
 
     private let panelWidth: CGFloat = 640
+    private let cornerRadius: CGFloat = 20
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
         VStack(spacing: 0) {
             searchRow
             if showsBody {
-                Divider().opacity(0.35)
+                Divider().opacity(0.22)
                 bodySection
             }
         }
         .frame(width: panelWidth)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThickMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(0.45), radius: 40, y: 18)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .glassEffect(.regular.interactive(), in: shape)
+        .shadow(color: .black.opacity(0.28), radius: 28, y: 12)
         .onAppear {
             inputFocused = true
         }
@@ -37,8 +32,11 @@ struct OverlayPanelView: View {
         }
     }
 
+    /// Body opens for replies / clarify / errors — not for busy-only “Thinking…”.
     private var showsBody: Bool {
-        vm.isBusy || !vm.reply.isEmpty || !vm.clarifyChoices.isEmpty || vm.status.hasPrefix("Error")
+        !vm.reply.isEmpty
+            || !vm.clarifyChoices.isEmpty
+            || vm.status.hasPrefix("Error")
             || vm.status.hasPrefix("Runtime failed")
     }
 
@@ -101,11 +99,7 @@ struct OverlayPanelView: View {
                 }
             }
 
-            if vm.isBusy && vm.reply.isEmpty {
-                Text(vm.status)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-            } else if !vm.reply.isEmpty {
+            if !vm.reply.isEmpty {
                 ScrollView {
                     Text(vm.reply)
                         .font(.system(size: 15))
