@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observePresentationChanges()
         do {
             try hotkey.register { [weak self] in
-                self?.presentOverlayInitial()
+                self?.handleOverlayHotkey()
             }
             if !hotkey.isOverridingSystemShortcut {
                 overlayVM.status =
@@ -165,6 +165,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func presentOverlayInitial() {
         overlayVM.resetToInitial()
         showOverlay()
+    }
+
+    /// ⌃⌘Space: Spotlight-style — show fresh when hidden, dismiss when visible.
+    private func handleOverlayHotkey() {
+        let visible = panel?.isVisible == true
+        switch OverlayHotkeyPolicy.action(isVisible: visible) {
+        case .dismiss:
+            hideOverlay()
+        case .showFresh:
+            presentOverlayInitial()
+        }
     }
 
     private func showOverlay() {
