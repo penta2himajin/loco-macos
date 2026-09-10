@@ -1,7 +1,7 @@
 # loco-macos
 
 macOS companion overlay for [loco-bot](https://github.com/penta2himajin/loco-bot): global hotkey
-(**⌃⌘Space**) → floating panel → `loco serve` JSONL → reply.
+(**⌃⌥Space**) → floating panel → `loco serve` JSONL → reply.
 
 Behaviour SoT (lives in loco-bot):  
 https://github.com/penta2himajin/loco-bot/blob/main/docs/macos-overlay.md

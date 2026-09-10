@@ -2,7 +2,16 @@ import AppKit
 import Carbon
 import Foundation
 
-/// Registers ⌃⌘Space (configurable later) via Carbon global hotkeys.
+/// Default chord: ⌃⌥Space (Control + Option + Space).
+/// Avoids Spotlight (⌘Space) and the system Character Viewer (⌃⌘Space).
+public enum OverlayHotkey {
+    public static let displayName = "⌃⌥Space"
+    /// Carbon modifiers for RegisterEventHotKey.
+    public static var carbonModifiers: UInt32 { UInt32(controlKey | optionKey) }
+    public static var keyCode: UInt32 { UInt32(kVK_Space) }
+}
+
+/// Registers the overlay global hotkey via Carbon.
 public final class HotkeyRegistrar {
     public typealias Handler = () -> Void
 
@@ -56,11 +65,9 @@ public final class HotkeyRegistrar {
         }
 
         let hotKeyID = EventHotKeyID(signature: OSType(0x4C_4F_43_4F), id: 1) // 'LOCO'
-        // space = 49; control+command
-        let modifiers = UInt32(controlKey | cmdKey)
         let registerStatus = RegisterEventHotKey(
-            UInt32(kVK_Space),
-            modifiers,
+            OverlayHotkey.keyCode,
+            OverlayHotkey.carbonModifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,

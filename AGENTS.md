@@ -2,7 +2,7 @@
 
 ## Overview
 
-Thin macOS surface for loco-bot: Spotlight-like overlay (⌃⌘Space), menu-bar helper,
+Thin macOS surface for loco-bot: Spotlight-like overlay (⌃⌥Space), menu-bar helper,
 and a warm `loco serve` child process. Inference, memory, S1, and tools stay in
 **loco-bot**; this repo is UI + IPC only.
 
