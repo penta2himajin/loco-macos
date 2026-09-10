@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Warm runtime on launch (cpu by default — avoid contending for GPU).
         overlayVM.ensureRuntime()
+        showOverlay()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
