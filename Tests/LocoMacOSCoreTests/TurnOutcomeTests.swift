@@ -56,4 +56,12 @@ struct RuntimeConfigTests {
     @Test func overlayDefaultIsCpu() {
         #expect(RuntimeConfig.overlayDefault.backend == .cpu)
     }
+
+    @Test func resolvedOverlayDefaultReadsLocoBackendEnv() {
+        #expect(RuntimeConfig.resolvedOverlayDefault(environment: [:]).backend == .cpu)
+        #expect(RuntimeConfig.resolvedOverlayDefault(environment: ["LOCO_BACKEND": "gpu"]).backend == .gpu)
+        #expect(RuntimeConfig.resolvedOverlayDefault(environment: ["LOCO_BACKEND": "metal"]).backend == .gpu)
+        #expect(RuntimeConfig.resolvedOverlayDefault(environment: ["LOCO_BACKEND": "cpu"]).backend == .cpu)
+        #expect(RuntimeConfig.resolvedOverlayDefault(environment: ["LOCO_BACKEND": "nope"]).backend == .cpu)
+    }
 }

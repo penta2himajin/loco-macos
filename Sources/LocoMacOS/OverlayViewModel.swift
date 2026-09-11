@@ -22,7 +22,7 @@ final class OverlayViewModel {
     private let client: LocoServeClient
     private let config: RuntimeConfig
 
-    init(config: RuntimeConfig = .overlayDefault) {
+    init(config: RuntimeConfig = .resolvedOverlayDefault()) {
         self.config = config
         self.client = LocoServeClient(config: config)
     }

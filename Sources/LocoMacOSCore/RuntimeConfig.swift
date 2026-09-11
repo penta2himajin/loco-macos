@@ -34,8 +34,29 @@ public struct RuntimeConfig: Sendable, Equatable {
     }
 
     /// Default for the overlay helper. Prefer cpu when the machine is already
-    /// under GPU load; switch to gpu in Settings when free.
+    /// under GPU load; switch to gpu via `LOCO_BACKEND=gpu` (or Settings later).
     public static let overlayDefault = RuntimeConfig(backend: .cpu)
+
+    /// Resolves overlay config from the environment (`LOCO_BACKEND=cpu|gpu|metal`).
+    public static func resolvedOverlayDefault(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> RuntimeConfig {
+        guard let raw = environment["LOCO_BACKEND"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              !raw.isEmpty
+        else {
+            return overlayDefault
+        }
+        let backend: InferenceBackend
+        switch raw {
+        case "gpu", "metal":
+            backend = .gpu
+        case "cpu":
+            backend = .cpu
+        default:
+            return overlayDefault
+        }
+        return RuntimeConfig(backend: backend)
+    }
 
     public func serveArguments() -> [String] {
         var args = ["serve", "--backend", backend.rawValue]

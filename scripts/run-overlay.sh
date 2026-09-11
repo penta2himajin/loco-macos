@@ -19,6 +19,10 @@ cat > "$APP/Contents/MacOS/LocoMacOS-launcher" <<EOF
 #!/bin/bash
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 export PATH="\${HOME}/repos/loco-bot/target/debug:/usr/local/bin:/opt/homebrew/bin:\$PATH"
+# Pass through LOCO_BACKEND=gpu|cpu|metal when set by run-overlay / shell.
+if [[ -n "\${LOCO_BACKEND:-}" ]]; then
+  export LOCO_BACKEND
+fi
 exec "\$DIR/LocoMacOS" "\$@"
 EOF
 chmod +x "$APP/Contents/MacOS/LocoMacOS-launcher"
