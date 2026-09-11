@@ -7,10 +7,13 @@ public enum LocoServeError: Error, Sendable, Equatable {
     case decodeFailed(String)
     case emptyReply
     case processExited(Int32)
+    case hostToolLoopExceeded(Int)
 }
 
-/// JSONL client for `loco serve` (one `{"user":…}` line in → one `TurnOutcome` out).
+/// JSONL client for `loco serve` (configure / turn / tool_result).
 public final class LocoServeClient: @unchecked Sendable {
+    public static let maxHostToolRounds = 8
+
     private let config: RuntimeConfig
     private var process: Process?
     private var stdinHandle: FileHandle?
@@ -18,6 +21,7 @@ public final class LocoServeClient: @unchecked Sendable {
     private let lock = NSLock()
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+    private var didConfigure = false
 
     public init(config: RuntimeConfig = .overlayDefault) {
         self.config = config
@@ -54,6 +58,7 @@ public final class LocoServeClient: @unchecked Sendable {
         process = proc
         stdinHandle = inPipe.fileHandleForWriting
         stdoutHandle = outPipe.fileHandleForReading
+        didConfigure = false
     }
 
     public func stop() {
@@ -65,10 +70,69 @@ public final class LocoServeClient: @unchecked Sendable {
         try? stdoutHandle?.close()
         stdinHandle = nil
         stdoutHandle = nil
+        didConfigure = false
     }
 
-    /// Send one user turn and wait for a single JSON `TurnOutcome` line.
+    /// Advertise host tools once per process lifetime (session start).
+    public func ensureConfigured(tools: [HostToolDefinition] = MacHostTools.v1Catalog) throws {
+        lock.lock()
+        let already = didConfigure
+        lock.unlock()
+        guard !already else { return }
+        let msg = try send(ServeClientMessage.configure(tools: tools))
+        guard case .done = msg else {
+            throw LocoServeError.decodeFailed("configure expected status=done")
+        }
+        lock.lock()
+        didConfigure = true
+        lock.unlock()
+    }
+
+    /// One user turn; fulfills `awaiting_tool` via `executeHost` until `done`.
+    public func turn(
+        user: String,
+        executeHost: (String, [String: JSONValue]) -> (ok: Bool, content: JSONValue)
+    ) throws -> TurnOutcome {
+        try ensureConfigured()
+        var message = try send(ServeClientMessage.turn(user: user))
+        var rounds = 0
+        while true {
+            switch message {
+            case let .done(outcome):
+                return outcome
+            case let .awaitingTool(outcome, callId):
+                rounds += 1
+                if rounds > Self.maxHostToolRounds {
+                    throw LocoServeError.hostToolLoopExceeded(Self.maxHostToolRounds)
+                }
+                let request = outcome.events.reversed().compactMap { event -> (String, [String: JSONValue])? in
+                    if case let .toolRequest(name, args, _) = event { return (name, args) }
+                    return nil
+                }.first
+                let name = request?.0 ?? ""
+                let args = request?.1 ?? [:]
+                let result = executeHost(name, args)
+                message = try send(
+                    ServeClientMessage.toolResult(callId: callId, ok: result.ok, content: result.content)
+                )
+            }
+        }
+    }
+
+    /// Backward-compatible helper used by older call sites / tests.
     public func turn(user: String) throws -> TurnOutcome {
+        try turn(user: user) { name, _ in
+            (
+                false,
+                .object([
+                    "error": .string("host tool executor not provided"),
+                    "tool": .string(name),
+                ])
+            )
+        }
+    }
+
+    private func send(_ message: ServeClientMessage) throws -> ServeServerMessage {
         lock.lock()
         guard let stdin = stdinHandle, let stdout = stdoutHandle, process?.isRunning == true else {
             lock.unlock()
@@ -76,8 +140,7 @@ public final class LocoServeClient: @unchecked Sendable {
         }
         lock.unlock()
 
-        let payload: [String: String] = ["user": user]
-        guard let data = try? encoder.encode(payload),
+        guard let data = try? encoder.encode(message),
               var line = String(data: data, encoding: .utf8)
         else {
             throw LocoServeError.encodeFailed
@@ -98,8 +161,12 @@ public final class LocoServeClient: @unchecked Sendable {
             throw LocoServeError.decodeFailed("non-utf8")
         }
         do {
-            return try decoder.decode(TurnOutcome.self, from: raw)
+            return try decoder.decode(ServeServerMessage.self, from: raw)
         } catch {
+            // Older loco builds returned bare TurnOutcome without status.
+            if let outcome = try? decoder.decode(TurnOutcome.self, from: raw) {
+                return .done(outcome: outcome)
+            }
             throw LocoServeError.decodeFailed(String(responseLine.prefix(200)))
         }
     }
@@ -129,7 +196,6 @@ public final class LocoServeClient: @unchecked Sendable {
                 return candidate
             }
         }
-        // Common cargo debug location for local dev.
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let local = "\(home)/repos/loco-bot/target/debug/loco"
         if FileManager.default.isExecutableFile(atPath: local) {

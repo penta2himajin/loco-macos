@@ -76,3 +76,17 @@ struct ServeProtocolTests {
         }
     }
 }
+
+@Suite("Open URL host tool")
+struct OpenURLToolTests {
+    @Test func acceptsHttpsURL() {
+        let url = OpenURLTool.url(from: ["url": .string("https://example.com/path")])
+        #expect(url?.absoluteString == "https://example.com/path")
+    }
+
+    @Test func rejectsNonHttpSchemes() {
+        #expect(OpenURLTool.url(from: ["url": .string("file:///tmp/x")]) == nil)
+        #expect(OpenURLTool.url(from: ["url": .string("not a url")]) == nil)
+        #expect(OpenURLTool.url(from: [:]) == nil)
+    }
+}

@@ -31,6 +31,7 @@ final class OverlayViewModel {
         guard !client.isRunning else { return }
         do {
             try client.start()
+            try client.ensureConfigured(tools: MacHostTools.v1Catalog)
             status = "Runtime warm (\(config.backend.rawValue))"
         } catch {
             status = "Runtime failed: \(error.localizedDescription). Is `loco` on PATH?"
@@ -74,7 +75,11 @@ final class OverlayViewModel {
         let client = self.client
         Task.detached(priority: .userInitiated) {
             do {
-                let outcome = try client.turn(user: text)
+                let outcome = try client.turn(user: text) { name, args in
+                    DispatchQueue.main.sync {
+                        MacHostToolRunner.execute(name: name, arguments: args)
+                    }
+                }
                 await MainActor.run {
                     self.apply(outcome, prompt: text)
                     self.isBusy = false
