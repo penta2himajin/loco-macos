@@ -3,8 +3,10 @@
 ## Overview
 
 Thin macOS surface for loco-bot: Spotlight-like overlay (⌃⌘Space), menu-bar helper,
-and a warm `loco serve` child process. Inference, memory, S1, and tools stay in
-**loco-bot**; this repo is UI + IPC only.
+and a warm `loco serve` child process. Agent orchestration, memory, S1, and portable
+tools stay in **loco-bot**. This repo owns UI + IPC and the macOS-specific
+`LocoFMAdapter` executable, which serves loco-bot's external inference protocol.
+FM commands, schemas, and token budgeting belong here; do not duplicate the agent loop.
 
 Behaviour contract: [loco-bot `docs/macos-overlay.md`](https://github.com/penta2himajin/loco-bot/blob/main/docs/macos-overlay.md).
 
@@ -13,6 +15,7 @@ Behaviour contract: [loco-bot `docs/macos-overlay.md`](https://github.com/penta2
 ```
 Sources/LocoMacOSCore/   # Agent JSON types + LocoServeClient
 Sources/LocoMacOS/       # AppKit/SwiftUI overlay + hotkey
+Sources/LocoFMAdapter/   # One-shot Foundation Models CLI adapter (no daemon)
 Tests/LocoMacOSCoreTests/
 docs/                    # handoff, i18n, local notes
 git-hooks/               # pre-push (swift build)

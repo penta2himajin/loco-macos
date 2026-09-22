@@ -9,8 +9,10 @@ let package = Package(
     products: [
         .library(name: "LocoMacOSCore", targets: ["LocoMacOSCore"]),
         .executable(name: "LocoMacOS", targets: ["LocoMacOS"]),
+        .executable(name: "LocoFMAdapter", targets: ["LocoFMAdapter"]),
     ],
     targets: [
+        .executableTarget(name: "LocoFMAdapter", dependencies: ["LocoMacOSCore"]),
         .target(
             name: "LocoMacOSCore",
             path: "Sources/LocoMacOSCore"

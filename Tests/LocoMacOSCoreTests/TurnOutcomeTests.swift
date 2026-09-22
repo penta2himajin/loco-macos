@@ -44,6 +44,15 @@ struct TurnOutcomeJSONTests {
 
 @Suite("RuntimeConfig")
 struct RuntimeConfigTests {
+    @Test func foundationModelsBackendUsesFmWithoutChangingCpuDefault() {
+        let cfg = RuntimeConfig.resolvedOverlayDefault(environment: ["LOCO_BACKEND": " FM "])
+        #expect(cfg.backend.rawValue == "fm")
+        #expect(cfg.serveArguments() == ["serve", "--backend", "external"])
+        #expect(cfg.serveEnvironment(environment: [:], executableURL: URL(fileURLWithPath: "/tmp/My App/LocoMacOS"))["LOCO_INFERENCE_COMMAND"] == "/tmp/My App/LocoFMAdapter")
+        #expect(cfg.serveEnvironment(environment: ["LOCO_FM_ADAPTER_PATH": "/tmp/custom-adapter"])["LOCO_INFERENCE_COMMAND"] == "/tmp/custom-adapter")
+        #expect(RuntimeConfig.overlayDefault.backend == .cpu)
+    }
+
     @Test func serveArgsIncludeBackend() {
         let cfg = RuntimeConfig(backend: .cpu, allowFs: true, fsRoot: "/tmp/sandbox")
         let args = cfg.serveArguments()
