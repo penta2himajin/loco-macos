@@ -45,6 +45,22 @@ struct FMAdapterTests {
         #expect(prompts[0].contains("turn-11\""))
     }
 
+    @Test func keepsEveryTurnThatFitsTheTokenBudget() throws {
+        var messages: [[String: Any]] = []
+        for n in 0..<12 {
+            messages += [["role": "user", "content": "turn-\(n)"], ["role": "assistant", "content": "reply"]]
+        }
+        messages.removeLast()
+        var prompt = ""
+        _ = try FMAdapter(contextTokens: 4096).respond(to: request(messages)) { args, input in
+            if args.first == "count-tokens" { return Data("100".utf8) }
+            prompt = String(decoding: input, as: UTF8.self)
+            return Data(#"{"content":"hello"}"#.utf8)
+        }
+        #expect(prompt.contains("turn-0\""))
+        #expect(prompt.contains("turn-11\""))
+    }
+
     @Test func oversizedCurrentTurnFailsWithoutGeneratingOrTruncating() throws {
         var calls: [String] = []
         #expect(throws: Error.self) {
