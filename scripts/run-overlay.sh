@@ -13,13 +13,14 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 
 cp .build/debug/LocoMacOS "$APP/Contents/MacOS/LocoMacOS"
+cp .build/debug/LocoFMAdapter "$APP/Contents/MacOS/LocoFMAdapter"
 chmod +x "$APP/Contents/MacOS/LocoMacOS"
 
 cat > "$APP/Contents/MacOS/LocoMacOS-launcher" <<EOF
 #!/bin/bash
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 export PATH="\${HOME}/repos/loco-bot/target/debug:/usr/local/bin:/opt/homebrew/bin:\$PATH"
-# Pass through LOCO_BACKEND=gpu|cpu|metal when set by run-overlay / shell.
+# Pass through LOCO_BACKEND=gpu|cpu|metal|fm when set by run-overlay / shell.
 if [[ -n "\${LOCO_BACKEND:-}" ]]; then
   export LOCO_BACKEND
 fi
@@ -63,6 +64,12 @@ pkill -f 'LocoMacOS.app/Contents/MacOS/LocoMacOS' 2>/dev/null || true
 pkill -f 'loco serve --backend' 2>/dev/null || true
 sleep 0.3
 
-open "$APP"
+OPEN_ARGS=(open)
+for name in LOCO_BACKEND LOCO_FM_CONTEXT_TOKENS LOCO_FM_PATH LOCO_FM_ADAPTER_PATH; do
+  if [[ -n "${!name:-}" ]]; then
+    OPEN_ARGS+=(--env "$name=${!name}")
+  fi
+done
+"${OPEN_ARGS[@]}" "$APP"
 echo "Launched: $APP"
 echo "Look for 🔍/sparkle + “loco” in the menu bar."

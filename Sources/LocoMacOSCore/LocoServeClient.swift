@@ -41,6 +41,7 @@ public final class LocoServeClient: @unchecked Sendable {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: resolvedLocoPath())
         proc.arguments = config.serveArguments()
+        proc.environment = config.serveEnvironment()
 
         let inPipe = Pipe()
         let outPipe = Pipe()
