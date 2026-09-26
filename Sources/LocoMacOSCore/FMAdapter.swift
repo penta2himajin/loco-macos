@@ -34,7 +34,6 @@ public struct FMAdapter {
         guard !groups.isEmpty, ["user", "tool"].contains(messages.last?["role"] as? String ?? "") else {
             throw FMAdapterError("Expected a user prompt or tool result")
         }
-        groups = Array(groups.suffix(10))
         let validationSchema = try responseSchema(tools: tools)
         let schema = Self.generationSchema(validationSchema)
         let schemaData = try JSONSerialization.data(withJSONObject: schema, options: [.sortedKeys])
