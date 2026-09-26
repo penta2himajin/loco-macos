@@ -44,9 +44,10 @@ and tool control stay in loco-bot. The adapter runs `fm count-tokens` and
 
 The adapter counts the assembled conversation, instructions, and a textual
 estimate of the schema before each generation, including tool continuations.
-It keeps at most 10 user-turn groups and removes oldest groups until they fit.
-The current prompt/tool exchange is never silently truncated; oversized input
-returns an error. Persisted loco-bot memory is unaffected.
+It removes oldest user-turn groups until they fit the token budget. Which turns
+are included is loco-bot's session memory; this adapter does not apply a second
+turn-count cap. The current prompt/tool exchange is never silently truncated;
+oversized input returns an error. Persisted loco-bot memory is unaffected.
 
 `LOCO_FM_CONTEXT_TOKENS` controls the total budget (conservative default: 4096;
 1024 reserved for output/framing). Only raise it after checking the model's
